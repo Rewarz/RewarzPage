@@ -46,6 +46,7 @@ export default function Home() {
           <p className="text-xl md:text-2xl text-gray-300 mt-6 max-w-3xl leading-relaxed">
             Jugando, contestando encuestas, viendo videos y mucho más
           </p>
+          
         </div>
 
         {/* Green Light Effect - Extended to top */}

@@ -1,8 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
 import { Play, DollarSign, Clock, ChevronRight, Shield, Timer, TrendingUp, CheckCircle2 } from "lucide-react"
+import AdViewerModal from "@/app/components/ad-viewer-modal"
 
 const platforms = [
   {
@@ -34,12 +35,13 @@ const platforms = [
     name: "Adsterra",
     logo: "/placeholder.svg?height=60&width=60",
     payPerVideo: "$0.30 - $1.50",
-    dailyLimit: 12,
+    dailyLimit: 4,
     description: "Anuncios premium de marcas reconocidas.",
-    requirements: "Interacción requerida",
+    requirements: "Ver anuncio por 15 segundos",
     available: true,
     rating: 4.6,
     totalVideos: 200,
+    provider: "adsterra",
   },
   {
     id: 4,
@@ -81,9 +83,112 @@ const platforms = [
 
 export default function VideosPage() {
   const [selectedPlatform, setSelectedPlatform] = useState<number | null>(null)
+  const [isAdModalOpen, setIsAdModalOpen] = useState(false)
+  const [currentAdIndex, setCurrentAdIndex] = useState(0)
+  const [viewedAdsCount, setViewedAdsCount] = useState(0)
+  const [earnings, setEarnings] = useState(0)
+  const [remainingViews, setRemainingViews] = useState(4)
+
+  // Load saved state from localStorage
+  useEffect(() => {
+    const savedViewedAdsCount = localStorage.getItem("adsterra_viewed_count")
+    const savedEarnings = localStorage.getItem("adsterra_earnings")
+    const lastResetDate = localStorage.getItem("adsterra_last_reset")
+
+    // Check if we need to reset daily count
+    const today = new Date().toDateString()
+    if (lastResetDate !== today) {
+      // Reset for new day
+      setViewedAdsCount(0)
+      setRemainingViews(4)
+      localStorage.setItem("adsterra_viewed_count", "0")
+      localStorage.setItem("adsterra_last_reset", today)
+    } else {
+      // Load saved values
+      if (savedViewedAdsCount) {
+        const count = Number.parseInt(savedViewedAdsCount)
+        setViewedAdsCount(count)
+        setRemainingViews(Math.max(0, 4 - count))
+      }
+    }
+
+    if (savedEarnings) {
+      setEarnings(Number.parseFloat(savedEarnings))
+    }
+  }, [])
+
+  // Cargar el script de Adsterra globalmente
+  useEffect(() => {
+    // Verificar si el script ya existe
+    const existingScript = document.querySelector('script[src*="effectiveratecpm.com"]')
+
+    if (!existingScript) {
+      const script = document.createElement("script")
+      script.async = true
+      script.setAttribute("data-cfasync", "false")
+      script.src = "//pl26017745.effectiveratecpm.com/1168d2b369a0985d6c4dbfd089c4f397/invoke.js"
+      document.head.appendChild(script)
+
+      return () => {
+        if (document.head.contains(script)) {
+          document.head.removeChild(script)
+        }
+      }
+    }
+  }, [])
+
+  // Save state to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem("adsterra_viewed_count", viewedAdsCount.toString())
+    localStorage.setItem("adsterra_earnings", earnings.toString())
+  }, [viewedAdsCount, earnings])
+
+  const handleStartWatchingAds = (platformId: number) => {
+    const platform = platforms.find((p) => p.id === platformId)
+    if (platform?.provider === "adsterra") {
+      if (remainingViews > 0) {
+        setIsAdModalOpen(true)
+        setCurrentAdIndex(0)
+      } else {
+        alert("Has alcanzado el límite diario de anuncios. Vuelve mañana para ganar más recompensas.")
+      }
+    }
+  }
+
+  const handleAdCompleted = () => {
+    // Update counts and earnings
+    const newViewedCount = viewedAdsCount + 1
+    setViewedAdsCount(newViewedCount)
+    setRemainingViews(Math.max(0, 4 - newViewedCount))
+
+    // Add earnings (using the minimum value from the range)
+    setEarnings((prev) => {
+      const platform = platforms.find((p) => p.id === 3) // Adsterra
+      if (platform) {
+        const payRange = platform.payPerVideo
+        const minPay = Number.parseFloat(payRange.split(" - ")[0].replace("$", ""))
+        return prev + minPay
+      }
+      return prev
+    })
+  }
+
+  // Modificar la función handleNextAd para recargar el anuncio
+  const handleNextAd = () => {
+    if (currentAdIndex < 3) {
+      // Asumiendo 4 anuncios en total (0-3)
+      setCurrentAdIndex((prev) => prev + 1)
+
+      // Eliminar script anterior para forzar recarga
+      const existingScript = document.querySelector('script[src*="effectiveratecpm.com"]')
+      if (existingScript && existingScript.parentNode) {
+        existingScript.parentNode.removeChild(existingScript)
+      }
+    }
+  }
 
   return (
-    <div className="  text-white">
+    <div className="text-white">
       {/* Hero Section */}
       <section className="relative overflow-hidden pt-60">
         <div className="absolute inset-0 bg-gradient-to-b from-green-900/20 to-transparent opacity-30" />
@@ -148,8 +253,41 @@ export default function VideosPage() {
         </div>
       </section>
 
+      {/* Earnings Summary */}
+      {viewedAdsCount > 0 && (
+        <section className="py-8 bg-gray-900/50">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="bg-gray-800 border border-gray-700 rounded-xl p-6">
+                <h3 className="text-xl font-semibold mb-4">Tu progreso de hoy</h3>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">Videos vistos</div>
+                    <div className="text-2xl font-semibold">{viewedAdsCount} / 4</div>
+                    <div className="w-full bg-gray-700 h-2 rounded-full mt-2">
+                      <div
+                        className="bg-green-500 h-2 rounded-full"
+                        style={{ width: `${(viewedAdsCount / 4) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">Ganancias de hoy</div>
+                    <div className="text-2xl font-semibold text-green-500">${earnings.toFixed(2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-sm text-gray-400 mb-1">Videos restantes</div>
+                    <div className="text-2xl font-semibold">{remainingViews}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Platforms Section */}
-      <section className="py-20 ">
+      <section className="py-20">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-3xl font-bold mb-2">Plataformas Disponibles</h2>
@@ -203,6 +341,13 @@ export default function VideosPage() {
                           <div className="text-sm text-gray-400 mb-1">Videos disponibles</div>
                           <div className="text-2xl font-semibold">{platform.totalVideos}+</div>
                         </div>
+
+                        {platform.provider === "adsterra" && (
+                          <div>
+                            <div className="text-sm text-gray-400 mb-1">Videos restantes hoy</div>
+                            <div className="text-2xl font-semibold">{remainingViews}</div>
+                          </div>
+                        )}
                       </div>
                       <div>
                         <div className="text-sm text-gray-400 mb-3">Requisitos</div>
@@ -210,8 +355,18 @@ export default function VideosPage() {
                           <CheckCircle2 size={20} className="text-green-500 mt-1" />
                           <p>{platform.requirements}</p>
                         </div>
-                        <button className="w-full mt-6 bg-green-500 text-black font-medium px-6 py-3 rounded-lg hover:bg-green-400 transition-colors">
-                          Comenzar a Ver Videos
+                        <button
+                          className={`w-full mt-6 font-medium px-6 py-3 rounded-lg transition-colors ${
+                            platform.provider === "adsterra" && remainingViews === 0
+                              ? "bg-gray-700 text-gray-400 cursor-not-allowed"
+                              : "bg-green-500 text-black hover:bg-green-400"
+                          }`}
+                          onClick={() => handleStartWatchingAds(platform.id)}
+                          disabled={platform.provider === "adsterra" && remainingViews === 0}
+                        >
+                          {platform.provider === "adsterra" && remainingViews === 0
+                            ? "Límite diario alcanzado"
+                            : "Comenzar a Ver Videos"}
                         </button>
                       </div>
                     </div>
@@ -278,6 +433,17 @@ export default function VideosPage() {
           </div>
         </div>
       </section>
+
+      {/* Ad Viewer Modal */}
+      <AdViewerModal
+        isOpen={isAdModalOpen}
+        onClose={() => setIsAdModalOpen(false)}
+        onComplete={handleAdCompleted}
+        currentAdIndex={currentAdIndex}
+        totalAds={4}
+        onNextAd={handleNextAd}
+        remainingViews={remainingViews}
+      />
     </div>
   )
 }
