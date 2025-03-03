@@ -22,3 +22,82 @@ body {
   background: var(--background);
   font-family: Arial, Helvetica, sans-serif;
 }
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes scroll-right {
+  0% {
+    transform: translateX(-50%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.animate-scroll-left {
+  animation: scroll-left 40s linear infinite;
+}
+
+.animate-scroll-right {
+  animation: scroll-right 40s linear infinite;
+}
+
+@keyframes scroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-scroll {
+  animation: scroll 30s linear infinite;
+}
+
+
+/* Estilo para el scrollbar en navegadores webkit (Chrome, Safari, etc.) */
+/* Cambia el color del scrollbar */
+::-webkit-scrollbar {
+  width: 5px; /* Ancho del scrollbar */
+}
+
+/* Cambia el color del fondo del scrollbar */
+::-webkit-scrollbar-track {
+  background: #1a1a1a; /* Color del fondo */
+}
+
+/* Cambia el color del thumb (la parte deslizable del scrollbar) */
+::-webkit-scrollbar-thumb {
+  background: #00c951;
+  border-radius: 5px;
+
+}
+
+/* Cambia el color del thumb cuando se desplaza */
+::-webkit-scrollbar-thumb:hover {
+  background: #00c951; /* Color del thumb al pasar el mouse */
+}
+
+
+@keyframes lightGlow {
+  0% {
+    box-shadow: 0 0 5px rgba(0, 255, 0, 0.5), 0 0 15px rgba(0, 255, 0, 0.3), 0 0 30px rgba(0, 255, 0, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.8), 0 0 25px rgba(0, 255, 0, 0.5), 0 0 50px rgba(0, 255, 0, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(0, 255, 0, 0.5), 0 0 15px rgba(0, 255, 0, 0.3), 0 0 30px rgba(0, 255, 0, 0.2);
+  }
+}
+
+.animate-lightGlow {
+  animation: lightGlow 2s infinite;
+}
