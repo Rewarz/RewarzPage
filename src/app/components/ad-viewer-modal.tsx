@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import { X, ChevronRight, Clock, AlertTriangle } from "lucide-react"
 
 interface AdViewerModalProps {
@@ -27,9 +27,12 @@ export default function AdViewerModal({
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [showRewardMessage, setShowRewardMessage] = useState(false)
+  const [scriptLoaded, setScriptLoaded] = useState(false)
+  const [scriptError, setScriptError] = useState(false)
   const adContainerRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const prevAdIndexRef = useRef(currentAdIndex)
+  const scriptRef = useRef<HTMLScriptElement | null>(null)
 
   // Reset timer when ad changes or modal opens
   useEffect(() => {
@@ -40,6 +43,8 @@ export default function AdViewerModal({
         setIsCompleted(false)
         setIsPaused(false)
         setShowRewardMessage(false)
+        setScriptLoaded(false)
+        setScriptError(false)
         prevAdIndexRef.current = currentAdIndex
       } else if (prevAdIndexRef.current === 0 && currentAdIndex === 0) {
         // Primera apertura del modal
@@ -47,78 +52,248 @@ export default function AdViewerModal({
         setIsCompleted(false)
         setIsPaused(false)
         setShowRewardMessage(false)
+        setScriptLoaded(false)
+        setScriptError(false)
       }
     }
   }, [isOpen, currentAdIndex])
+
+  // Función para limpiar scripts y elementos relacionados con anuncios
+  const cleanupAds = useCallback(() => {
+    // Eliminar scripts
+    const existingScripts = document.querySelectorAll(
+      'script[src*="effectiveratecpm.com"], script[src*="highperformanceformat.com"]',
+    )
+    existingScripts.forEach((script) => {
+      if (script.parentNode) {
+        script.parentNode.removeChild(script)
+      }
+    })
+
+    // Eliminar iframes que puedan haber sido creados por los anuncios
+    const adIframes = document.querySelectorAll('iframe[src*="effectiveratecpm"], iframe[src*="highperformanceformat"]')
+    adIframes.forEach((iframe) => {
+      if (iframe.parentNode) {
+        iframe.parentNode.removeChild(iframe)
+      }
+    })
+
+    // Eliminar cualquier div con ID específico de anuncios
+    const adContainer = document.getElementById("container-1168d2b369a0985d6c4dbfd089c4f397")
+    if (adContainer && adContainer.parentNode) {
+      adContainer.parentNode.removeChild(adContainer)
+    }
+
+    // Eliminar contenedores específicos para scripts 3 y 4
+    const socialBarContainer = document.getElementById("socialbar-container")
+    if (socialBarContainer && socialBarContainer.parentNode) {
+      socialBarContainer.parentNode.removeChild(socialBarContainer)
+    }
+
+    const popunderContainer = document.getElementById("popunder-container")
+    if (popunderContainer && popunderContainer.parentNode) {
+      popunderContainer.parentNode.removeChild(popunderContainer)
+    }
+
+    // Limpiar cualquier otro elemento que pueda haber sido creado por los scripts
+    document.querySelectorAll('[id*="ScriptRoot"], [id*="ad-container"], [class*="ad-container"]').forEach((el) => {
+      if (el.parentNode) {
+        el.parentNode.removeChild(el)
+      }
+    })
+
+    // Eliminar el script guardado en la referencia
+    if (scriptRef.current && scriptRef.current.parentNode) {
+      scriptRef.current.parentNode.removeChild(scriptRef.current)
+      scriptRef.current = null
+    }
+  }, [])
+
+  // Función para cargar un script con manejo de eventos
+  const loadScript = useCallback(
+    (src: string, container: HTMLElement | Document = document.body, async = true, defer = true): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        const script = document.createElement("script")
+        script.type = "text/javascript"
+        script.src = src
+        script.async = async
+        script.defer = defer
+
+        script.onload = () => {
+          console.log(`Script loaded successfully: ${src}`)
+          setScriptLoaded(true)
+          resolve()
+        }
+
+        script.onerror = (error) => {
+          console.error(`Error loading script: ${src}`, error)
+          setScriptError(true)
+          reject(error)
+        }
+
+        container.appendChild(script)
+        scriptRef.current = script
+      })
+    },
+    [],
+  )
 
   // Initialize ad script when component mounts or ad changes
   useEffect(() => {
-    if (isOpen && adContainerRef.current) {
-      // Clear previous ad content
-      adContainerRef.current.innerHTML = ""
+    if (isOpen) {
+      // Limpiar antes de agregar nuevos anuncios
+      cleanupAds()
+      setScriptLoaded(false)
+      setScriptError(false)
 
-      // Eliminar scripts anteriores
-      const existingScripts = document.querySelectorAll(
-        'script[src*="effectiveratecpm.com"], script[src*="highperformanceformat.com"]',
-      )
-      existingScripts.forEach((script) => {
-        if (script.parentNode) {
-          script.parentNode.removeChild(script)
+      if (adContainerRef.current) {
+        // Clear previous ad content
+        adContainerRef.current.innerHTML = ""
+      }
+
+      // Usar 4 scripts distintos según el índice actual
+      if (currentAdIndex === 0) {
+        // Native Banner
+        if (adContainerRef.current) {
+          const container = document.createElement("div")
+          container.id = "container-1168d2b369a0985d6c4dbfd089c4f397"
+          adContainerRef.current.appendChild(container)
+
+          // Cargar el script con manejo de eventos
+          loadScript(
+            "//pl26017745.effectiveratecpm.com/1168d2b369a0985d6c4dbfd089c4f397/invoke.js",
+            document.head,
+          ).catch((error) => console.error("Error loading Native Banner script:", error))
         }
-      })
+      } else if (currentAdIndex === 1) {
+        // Banner
+        if (adContainerRef.current) {
+          const container = document.createElement("div")
+          adContainerRef.current.appendChild(container)
 
-      // Alternar entre los dos scripts (par = script1, impar = script2)
-      if (currentAdIndex % 2 === 0) {
-        // Script original (para índices 0, 2)
-        const container = document.createElement("div")
-        container.id = "container-1168d2b369a0985d6c4dbfd089c4f397"
-        adContainerRef.current.appendChild(container)
-        const script = document.createElement("script")
-        script.async = true
-        script.setAttribute("data-cfasync", "false")
-        script.src = "//pl26017745.effectiveratecpm.com/1168d2b369a0985d6c4dbfd089c4f397/invoke.js"
-        document.head.appendChild(script)
-      } else {
-        // Script nuevo con iframe (para índices 1, 3)
-        const container = document.createElement("div")
-        adContainerRef.current.appendChild(container)
+          // Crear script de opciones
+          const optionsScript = document.createElement("script")
+          optionsScript.type = "text/javascript"
+          optionsScript.text = `
+            atOptions = {
+              'key' : '8592fc2e6fcf3138efee1d71a81ac279',
+              'format' : 'iframe',
+              'height' : 300,
+              'width' : 160,
+              'params' : {}
+            };
+          `
+          container.appendChild(optionsScript)
 
-        // Crear script de opciones
-        const optionsScript = document.createElement("script")
-        optionsScript.type = "text/javascript"
-        optionsScript.text = `
-          atOptions = {
-            'key' : '8592fc2e6fcf3138efee1d71a81ac279',
-            'format' : 'iframe',
-            'height' : 300,
-            'width' : 160,
-            'params' : {}
-          };
-        `
-        container.appendChild(optionsScript)
+          // Cargar el script con manejo de eventos
+          loadScript("//www.highperformanceformat.com/8592fc2e6fcf3138efee1d71a81ac279/invoke.js", container).catch(
+            (error) => console.error("Error loading Banner script:", error),
+          )
+        }
+      } else if (currentAdIndex === 2) {
+        // SocialBar - Implementación con manejo de eventos
+        if (adContainerRef.current) {
+          // Crear un contenedor específico para el SocialBar
+          const container = document.createElement("div")
+          container.id = "socialbar-container"
+          container.className = "socialbar-container w-full h-full"
+          adContainerRef.current.appendChild(container)
 
-        // Crear script de invocación
-        const invokeScript = document.createElement("script")
-        invokeScript.type = "text/javascript"
-        invokeScript.src = "//www.highperformanceformat.com/8592fc2e6fcf3138efee1d71a81ac279/invoke.js"
-        container.appendChild(invokeScript)
+          // Asegurarse de que el DOM esté listo antes de cargar el script
+          setTimeout(() => {
+            // Cargar el script con manejo de eventos
+            loadScript(
+              "//pl26018299.effectiveratecpm.com/51/11/d8/5111d8f074527eedf54731196c8b277e.js",
+              document.body,
+              true,
+              false,
+            )
+              .then(() => {
+                console.log("SocialBar script loaded successfully")
+
+                // Mensaje informativo
+                if (adContainerRef.current) {
+                  const message = document.createElement("div")
+                  message.className = "text-center p-4 bg-green-500/10 rounded-lg mt-4"
+                  message.innerHTML = `
+                    <p class="text-green-500 font-medium mb-2">SocialBar cargado correctamente</p>
+                    <p class="text-gray-400 text-sm">Este anuncio puede aparecer en otra parte de la página</p>
+                  `
+                  adContainerRef.current.appendChild(message)
+                }
+              })
+              .catch((error) => {
+                console.error("Error loading SocialBar script:", error)
+
+                // Mensaje de error
+                if (adContainerRef.current) {
+                  const errorMessage = document.createElement("div")
+                  errorMessage.className = "text-center p-4 bg-red-500/10 rounded-lg mt-4"
+                  errorMessage.innerHTML = `
+                    <p class="text-red-500 font-medium mb-2">Error al cargar SocialBar</p>
+                    <p class="text-gray-400 text-sm">Pero puedes continuar para recibir tu recompensa</p>
+                  `
+                  adContainerRef.current.appendChild(errorMessage)
+                }
+              })
+          }, 500) // Pequeño retraso para asegurar que el DOM esté listo
+        }
+      } else if (currentAdIndex === 3) {
+        // Popunder - Implementación con manejo de eventos
+        if (adContainerRef.current) {
+          // Crear un contenedor específico para el Popunder
+          const container = document.createElement("div")
+          container.id = "popunder-container"
+          container.className = "popunder-container w-full h-full"
+          adContainerRef.current.appendChild(container)
+
+          // Asegurarse de que el DOM esté listo antes de cargar el script
+          setTimeout(() => {
+            // Cargar el script con manejo de eventos
+            loadScript(
+              "//pl26017933.effectiveratecpm.com/53/38/ce/5338ce573b1b344f161603013368e095.js",
+              document.body,
+              true,
+              false,
+            )
+              .then(() => {
+                console.log("Popunder script loaded successfully")
+
+                // Mensaje informativo
+                if (adContainerRef.current) {
+                  const message = document.createElement("div")
+                  message.className = "text-center p-4 bg-green-500/10 rounded-lg mt-4"
+                  message.innerHTML = `
+                    <p class="text-green-500 font-medium mb-2">Popunder cargado correctamente</p>
+                    <p class="text-gray-400 text-sm">Este anuncio puede aparecer en otra ventana o pestaña</p>
+                  `
+                  adContainerRef.current.appendChild(message)
+                }
+              })
+              .catch((error) => {
+                console.error("Error loading Popunder script:", error)
+
+                // Mensaje de error
+                if (adContainerRef.current) {
+                  const errorMessage = document.createElement("div")
+                  errorMessage.className = "text-center p-4 bg-red-500/10 rounded-lg mt-4"
+                  errorMessage.innerHTML = `
+                    <p class="text-red-500 font-medium mb-2">Error al cargar Popunder</p>
+                    <p class="text-gray-400 text-sm">Pero puedes continuar para recibir tu recompensa</p>
+                  `
+                  adContainerRef.current.appendChild(errorMessage)
+                }
+              })
+          }, 500) // Pequeño retraso para asegurar que el DOM esté listo
+        }
       }
     }
 
-
-
     return () => {
-      // Cleanup scripts when component unmounts or changes
-      const existingScripts = document.querySelectorAll(
-        'script[src*="effectiveratecpm.com"], script[src*="highperformanceformat.com"]',
-      )
-      existingScripts.forEach((script) => {
-        if (script.parentNode) {
-          script.parentNode.removeChild(script)
-        }
-      })
+      // Ejecutar limpieza completa cuando el componente se desmonta o cambia
+      cleanupAds()
     }
-  }, [isOpen, currentAdIndex])
+  }, [isOpen, currentAdIndex, cleanupAds, loadScript])
 
   // Timer countdown
   useEffect(() => {
@@ -127,7 +302,10 @@ export default function AdViewerModal({
     timerRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current)
+          if (timerRef.current !== null) {
+            clearInterval(timerRef.current)
+            timerRef.current = null
+          }
           setIsCompleted(true)
           // Mover la llamada a onComplete fuera del renderizado
           setTimeout(() => onComplete(), 0)
@@ -138,22 +316,31 @@ export default function AdViewerModal({
     }, 1000)
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
+      if (timerRef.current !== null) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
     }
-  }, [isOpen, isCompleted, onComplete, isPaused])
+  }, [isOpen, isCompleted, isPaused, onComplete])
+
+  // Función para cerrar el modal y limpiar anuncios
+  const handleClose = () => {
+    cleanupAds()
+    onClose()
+  }
 
   const handleCloseAttempt = () => {
     if (!isCompleted) {
       setIsPaused(true) // Pausar el temporizador
       setShowConfirmation(true)
     } else {
-      onClose()
+      handleClose()
     }
   }
 
   const handleConfirmClose = () => {
     setShowConfirmation(false)
-    onClose()
+    handleClose()
   }
 
   const handleCancelClose = () => {

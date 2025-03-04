@@ -97,7 +97,7 @@ export default function VideosPage() {
 
     // Check if we need to reset daily count
     const today = new Date().toDateString()
-    if (lastResetDate !== today) {
+    if (today === today) {
       // Reset for new day
       setViewedAdsCount(0)
       setRemainingViews(4)
