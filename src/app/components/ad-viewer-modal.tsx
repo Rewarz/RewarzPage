@@ -27,8 +27,7 @@ export default function AdViewerModal({
   const [showConfirmation, setShowConfirmation] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [showRewardMessage, setShowRewardMessage] = useState(false)
-  const [scriptLoaded, setScriptLoaded] = useState(false)
-  const [scriptError, setScriptError] = useState(false)
+
   const adContainerRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const prevAdIndexRef = useRef(currentAdIndex)
@@ -43,8 +42,6 @@ export default function AdViewerModal({
         setIsCompleted(false)
         setIsPaused(false)
         setShowRewardMessage(false)
-        setScriptLoaded(false)
-        setScriptError(false)
         prevAdIndexRef.current = currentAdIndex
       } else if (prevAdIndexRef.current === 0 && currentAdIndex === 0) {
         // Primera apertura del modal
@@ -52,8 +49,6 @@ export default function AdViewerModal({
         setIsCompleted(false)
         setIsPaused(false)
         setShowRewardMessage(false)
-        setScriptLoaded(false)
-        setScriptError(false)
       }
     }
   }, [isOpen, currentAdIndex])
@@ -121,13 +116,11 @@ export default function AdViewerModal({
 
         script.onload = () => {
           console.log(`Script loaded successfully: ${src}`)
-          setScriptLoaded(true)
           resolve()
         }
 
         script.onerror = (error) => {
           console.error(`Error loading script: ${src}`, error)
-          setScriptError(true)
           reject(error)
         }
 
@@ -143,8 +136,6 @@ export default function AdViewerModal({
     if (isOpen) {
       // Limpiar antes de agregar nuevos anuncios
       cleanupAds()
-      setScriptLoaded(false)
-      setScriptError(false)
 
       if (adContainerRef.current) {
         // Clear previous ad content
