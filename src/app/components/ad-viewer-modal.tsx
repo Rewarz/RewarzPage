@@ -3,14 +3,20 @@
 import { useState, useEffect, useRef } from "react";
 import { X, ChevronRight, Clock, AlertTriangle } from "lucide-react";
 
+declare global {
+  interface Window {
+    atOptions: any
+  }
+}
+
 interface AdViewerModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onComplete: () => void;
-  currentAdIndex: number;
-  totalAds: number;
-  onNextAd: () => void;
-  remainingViews: number;
+  isOpen: boolean
+  onClose: () => void
+  onComplete: () => void
+  currentAdIndex: number
+  totalAds: number
+  onNextAd: () => void
+  remainingViews: number
 }
 
 export default function AdViewerModal({
@@ -58,62 +64,94 @@ export default function AdViewerModal({
 
   // Función para limpiar scripts y elementos relacionados con anuncios
   const cleanupAds = () => {
-    // Eliminar scripts
-    const existingScripts = document.querySelectorAll(
-      'script[src*="effectiveratecpm.com"], script[src*="highperformanceformat.com"]'
-    );
-    existingScripts.forEach((script) => {
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
-      }
-    });
 
-    // Eliminar iframes que puedan haber sido creados por los anuncios
-    const adIframes = document.querySelectorAll(
-      'iframe[src*="effectiveratecpm"], iframe[src*="highperformanceformat"]'
-    );
-    adIframes.forEach((iframe) => {
-      if (iframe.parentNode) {
-        iframe.parentNode.removeChild(iframe);
-      }
-    });
+    // Eliminate all scripts from ad networks
+    const adScriptSelectors = [
+      'script[src*="effectiveratecpm.com"]',
+      'script[src*="highperformanceformat.com"]',
+      'script[src*="adsterra"]',
+      'script[data-cfasync="false"]',
+    ]
 
-    // Eliminar cualquier div con ID específico de anuncios
-    const adContainer = document.getElementById(
-      "container-1168d2b369a0985d6c4dbfd089c4f397"
-    );
-    if (adContainer && adContainer.parentNode) {
-      adContainer.parentNode.removeChild(adContainer);
-    }
-
-    // Eliminar contenedores específicos para scripts 3 y 4
-    const socialBarContainer = document.getElementById("socialbar-container");
-    if (socialBarContainer && socialBarContainer.parentNode) {
-      socialBarContainer.parentNode.removeChild(socialBarContainer);
-    }
-
-    const popunderContainer = document.getElementById("popunder-container");
-    if (popunderContainer && popunderContainer.parentNode) {
-      popunderContainer.parentNode.removeChild(popunderContainer);
-    }
-
-    // Limpiar cualquier otro elemento que pueda haber sido creado por los scripts
-    document
-      .querySelectorAll(
-        '[id*="ScriptRoot"], [id*="ad-container"], [class*="ad-container"]'
-      )
-      .forEach((el) => {
-        if (el.parentNode) {
-          el.parentNode.removeChild(el);
+    adScriptSelectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((script) => {
+        if (script.parentNode) {
+          // Type cast to HTMLScriptElement to access src property
+          console.log("Removing script:", (script as HTMLScriptElement).src)
+          script.parentNode.removeChild(script)
         }
-      });
+      })
+    })
 
-    // Eliminar el script guardado en la referencia
-    if (scriptRef.current && scriptRef.current.parentNode) {
-      scriptRef.current.parentNode.removeChild(scriptRef.current);
-      scriptRef.current = null;
+    // Remove all iframes created by ads
+    const adIframeSelectors = [
+      'iframe[src*="effectiveratecpm"]',
+      'iframe[src*="highperformanceformat"]',
+      'iframe[id*="google_ads"]',
+      'iframe[id*="ad-"]',
+    ]
+
+    adIframeSelectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((iframe) => {
+        if (iframe.parentNode) {
+          // Type cast to HTMLIFrameElement to access id and src properties
+          const iframeElement = iframe as HTMLIFrameElement
+          console.log("Removing iframe:", iframeElement.id || iframeElement.src)
+          iframe.parentNode.removeChild(iframe)
+        }
+      })
+    })
+
+    // Remove specific ad containers
+    const adContainerIds = ["container-1168d2b369a0985d6c4dbfd089c4f397", "socialbar-container", "popunder-container"]
+
+    adContainerIds.forEach((id) => {
+      const container = document.getElementById(id)
+      if (container && container.parentNode) {
+        console.log("Removing container:", id)
+        container.parentNode.removeChild(container)
+      }
+    })
+
+    // Clean up any other ad-related elements
+    const adElementSelectors = [
+      '[id*="ScriptRoot"]',
+      '[id*="ad-container"]',
+      '[class*="ad-container"]',
+      '[id*="adsterra"]',
+      '[class*="adsterra"]',
+      '[id*="popunder"]',
+      '[class*="popunder"]',
+    ]
+
+    adElementSelectors.forEach((selector) => {
+      document.querySelectorAll(selector).forEach((el) => {
+        if (el.parentNode) {
+          // Type cast to HTMLElement to access id and className properties
+          const element = el as HTMLElement
+          console.log("Removing element:", element.id || element.className)
+          el.parentNode.removeChild(el)
+        }
+      })
+    })
+
+    // Clear any global variables or functions that might have been set by ads
+    if (window.atOptions) {
+      window.atOptions = undefined
     }
-  };
+
+    // Remove the script saved in the reference
+    if (scriptRef.current && scriptRef.current.parentNode) {
+      console.log("Removing script reference")
+      scriptRef.current.parentNode.removeChild(scriptRef.current)
+      scriptRef.current = null
+    }
+
+    // Force garbage collection hint
+    if (adContainerRef.current) {
+      adContainerRef.current.innerHTML = ""
+    }
+  }
 
   // Función para cargar un script con manejo de eventos
   const loadScript = (
@@ -407,11 +445,14 @@ export default function AdViewerModal({
     if (isCompleted && currentAdIndex < totalAds - 1) {
       setShowRewardMessage(true);
 
+      // Run cleanup before showing the reward message
+      cleanupAds()
+
       // Mostrar mensaje por 1.5 segundos y luego pasar al siguiente anuncio
       setTimeout(() => {
-        setShowRewardMessage(false);
-        onNextAd();
-      }, 1500);
+        setShowRewardMessage(false)
+        onNextAd()
+      }, 1500)
     }
   };
 
