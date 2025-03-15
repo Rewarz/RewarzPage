@@ -3,9 +3,18 @@
 import { useState, useEffect, useRef } from "react";
 import { X, ChevronRight, Clock, AlertTriangle } from "lucide-react";
 
+// Replace 'any' with a specific interface to fix the ESLint error
 declare global {
   interface Window {
-    atOptions: any
+    atOptions:
+      | {
+          key: string
+          format: string
+          height: number
+          width: number
+          params: Record<string, unknown>
+        }
+      | undefined
   }
 }
 
